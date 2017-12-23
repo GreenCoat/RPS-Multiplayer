@@ -11,7 +11,7 @@ firebase.initializeApp(config);
 
 var database = firebase.database();
 
-var currentUser = readCookie('smuusercookie') != null ? readCookie('smuusercookie') : "Guest";
+var currentUser = readCookie('smuusercookie') != null ? readCookie('smuusercookie') : "Spectator";
 
 $("#user").html(currentUser);
 
@@ -37,7 +37,7 @@ $("#sign-in-btn").on("click", function(){
 
 	var user = $("#sign-in").val();
 
-	if(user != "Guest"){
+	if(user != "Spectator"){
 		currentUser = user;
 		$("#user").html(currentUser);
 		createCookie('smuusercookie', currentUser, 7);
@@ -58,11 +58,11 @@ $("#playerselect").on("click", function(){
 		player2 = snapshot.val();
 	});
 
-	if(player1.player == "None"){
+	if(player1.player == "None" && currentUser != 'Spectator'){
 		database.ref("/players/player1").update({
 			player: currentUser
 		});
-	} else if(player2.player == "None"){
+	} else if(player2.player == "None" && currentUser != 'Spectator'){
 		database.ref("/players/player2").update({
 			player: currentUser
 		});
@@ -108,7 +108,7 @@ $(".throw").on("click", function(){
 				childSnap.ref.update({
 					choice: choice
 				});
-				$("#results").html("You have selected " + choice);
+				$("#choice").html("You have selected " + choice);
 			}
 		});
 	})
@@ -136,10 +136,13 @@ database.ref("/players/player1").on("value", function(snapshot){
 	if(snapshot.val() == null){
 		database.ref("/players/player1").update({
 			player: "None",
-			choice: "None"
+			choice: "None",
+			wins: 0
 		});
 	} else {
-		$("#player1").html(snapshot.val().player);	
+		$("#player1").html(snapshot.val().player);
+		$("#wins1").html(snapshot.val().wins);
+		checkThrows();
 	}
 });
 
@@ -147,12 +150,84 @@ database.ref("/players/player2").on("value", function(snapshot){
 	if(snapshot.val() == null){
 		database.ref("/players/player2").update({
 			player: "None",
-			choice: "None"
+			choice: "None",
+			wins: 0
 		});
 	} else {
-		$("#player2").html(snapshot.val().player);	
+		$("#player2").html(snapshot.val().player);
+		$("#wins2").html(snapshot.val().wins);	
+		checkThrows();
 	}
 });
+
+function checkThrows(){
+	var player1 = database.ref("/players/player1");
+	var player2 = database.ref("/players/player2");
+
+	player1.once('value', function(snap){
+		if(snap.val().choice != 'None'){
+			player2.once('value', function(snap){
+				if(snap.val().choice != 'None'){
+					finalizeResults();
+				}
+			});
+		}
+	});
+
+}
+
+function finalizeResults(){
+	var player1;
+	var player2;
+	var choice1;
+	var choice2;
+	var wins1;
+	var wins2;
+
+	database.ref("/players/player1").once('value', function(snap){
+		player1 = snap.val().player;
+		choice1 = snap.val().choice;
+		wins1 = snap.val().wins ? snap.val().wins : 0;
+	});
+
+	database.ref("/players/player2").once('value', function(snap){
+		player2 = snap.val().player;
+		choice2 = snap.val().choice;
+		wins2 = snap.val().wins ? snap.val().wins : 0;
+	});
+
+	if(choice1 == choice2){
+		$("#results").html(player1 + " chose " + choice1 + " and " + player2 + " also chose " + choice2 + "! Its a tie!");
+	} else if(choice1 == 'Rock' && choice2 == 'Scissors') {
+		$("#results").html(player1 + " chose " + choice1 + " and smashes " + player2 + "'s " + choice2 + "! " + player1 + " wins!");
+		wins1++;
+	} else if(choice1 == 'Paper' && choice2 == 'Rock') {
+		$("#results").html(player1 + " chose " + choice1 + " and smothers " + player2 + "'s " + choice2 + "! " + player1 + " wins!");
+		wins1++;
+	} else if(choice1 == 'Scissors' && choice2 == 'Paper') {
+		$("#results").html(player1 + " chose " + choice1 + " and cuts " + player2 + "'s " + choice2 + "! " + player1 + " wins!");
+		wins1++;
+	} else if(choice1 == 'Rock' && choice2 == 'Paper') {
+		$("#results").html(player2 + " chose " + choice2 + " and smothers " + player1 + "'s " + choice1 + "! " + player2 + " wins!");
+		wins2++;
+	} else if(choice1 == 'Paper' && choice2 == 'Scissors') {
+		$("#results").html(player2 + " chose " + choice2 + " and cuts " + player1 + "'s " + choice1 + "! " + player2 + " wins!");
+		wins2++;
+	} else if(choice1 == 'Scissors' && choice2 == 'Rock') {
+		$("#results").html(player2 + " chose " + choice2 + " and smashes " + player1 + "'s " + choice1 + "! " + player2 + " wins!");
+		wins2++;
+	}
+
+	database.ref("/players/player1").update({
+		choice: 'None',
+		wins: wins1
+	}); 
+
+	database.ref("/players/player2").update({
+		choice: 'None',
+		wins: wins2
+	}); 
+}
 
 
 function createCookie(name,value,days) {
