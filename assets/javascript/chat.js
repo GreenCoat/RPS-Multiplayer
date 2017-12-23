@@ -71,17 +71,44 @@ $("#playerselect").on("click", function(){
 	}
 });
 
-$(".throw").on("click", function(){
-	var player;
+$("#playerleave").on("click", function(){
+	var player1;
+	var player2;
 
-	$("#results").html("You have selected " + event.target.value);
+	database.ref("/players/player1").once('value', function(snapshot){
+		player1 = snapshot.val();
+	});
+
+	database.ref("/players/player2").once('value', function(snapshot){
+		player2 = snapshot.val();
+	});
+
+	if(player1.player == currentUser){
+		database.ref("/players/player1").update({
+			player: 'None',
+			choice: 'None'
+		});
+	} 
+	if(player2.player == currentUser){
+		database.ref("/players/player2").update({
+			player: 'None',
+			choice: 'None'
+		});
+	} else {
+
+	}
+});
+
+$(".throw").on("click", function(){
+	var choice = event.target.value;
 	
 	database.ref("/players").once("value", function(snapshot){
 		snapshot.forEach(function(childSnap){
 			if(childSnap.val().player == currentUser){
-				player = childSnap.val().key;
-				console.log(childSnap.val());
-				console.log(database.ref("/players").child('player1'));
+				childSnap.ref.update({
+					choice: choice
+				});
+				$("#results").html("You have selected " + choice);
 			}
 		});
 	})
